@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve"
+	"github.com/blevesearch/bleve/index/scorch"
+	"github.com/blevesearch/bleve/mapping"
 )
 
 // GeoInfoIndex is implementation of index.GeoInfoIndex interface
@@ -66,15 +68,9 @@ func (infoIndex *GeoInfoIndex) Update(context context.Context, bulkSize int, obj
 
 // CreateTriggerIndex returns GeoInfoIndex by provided mapping
 func OpenOrCreateGeoInfoIndex(indexName string) (*GeoInfoIndex, error) {
-	bleveIdx, err := bleve.Open(indexName)
-
-	// create new index
+	bleveIdx, err := openOrCreateNewBleveIndex(indexName, BuildIndexMapping(BleveInfoObject{}))
 	if err != nil {
-		indexMapping := BuildIndexMapping(BleveInfoObject{})
-		bleveIdx, err = bleve.New(indexName, indexMapping)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	newIndex := &GeoInfoIndex{
@@ -87,15 +83,10 @@ func OpenOrCreateGeoInfoIndex(indexName string) (*GeoInfoIndex, error) {
 // CreateTriggerIndex returns GeoInfoIndex by provided mapping
 func OpenOrCreateSimpleGeoInfoIndex(indexName string) (*GeoInfoIndex, error) {
 	name := fmt.Sprintf("%s-simple", indexName)
-	bleveIdx, err := bleve.Open(name)
 
-	// create new index
+	bleveIdx, err := openOrCreateNewBleveIndex(name, bleve.NewIndexMapping())
 	if err != nil {
-		indexMapping := bleve.NewIndexMapping()
-		bleveIdx, err = bleve.New(name, indexMapping)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	newIndex := &GeoInfoIndex{
@@ -103,4 +94,22 @@ func OpenOrCreateSimpleGeoInfoIndex(indexName string) (*GeoInfoIndex, error) {
 	}
 
 	return newIndex, nil
+}
+
+func openOrCreateNewBleveIndex(indexName string, indexMapping mapping.IndexMapping) (bleveIdx bleve.Index, err error) {
+	bleveIdx, err = bleve.Open(indexName)
+
+	// create new index
+	if err == bleve.ErrorIndexPathDoesNotExist {
+
+		kvStore := scorch.Name
+		kvConfig := map[string]interface{}{
+			"create_if_missing": true,
+		}
+		bleveIdx, err = bleve.NewUsing(indexName, indexMapping, "scorch", kvStore, kvConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return
 }
