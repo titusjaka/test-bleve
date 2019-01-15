@@ -10,19 +10,12 @@ import (
 func getKeywordMapping() *mapping.FieldMapping {
 	keywordFieldMapping := bleve.NewTextFieldMapping()
 	keywordFieldMapping.Analyzer = keyword.Name
-	keywordFieldMapping.Store = false
-	keywordFieldMapping.IncludeTermVectors = false
-	keywordFieldMapping.IncludeInAll = false
-
 	return keywordFieldMapping
 }
 
 func getStandardMapping() *mapping.FieldMapping {
 	standardFieldMapping := bleve.NewTextFieldMapping()
 	standardFieldMapping.Analyzer = standard.Name
-	standardFieldMapping.Store = false
-	standardFieldMapping.IncludeTermVectors = false
-
 	return standardFieldMapping
 }
 

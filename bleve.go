@@ -10,6 +10,7 @@ import (
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/index/scorch"
 	"github.com/blevesearch/bleve/mapping"
+	"github.com/blevesearch/bleve/search/query"
 )
 
 // GeoInfoIndex is implementation of index.GeoInfoIndex interface
@@ -17,11 +18,11 @@ type GeoInfoIndex struct {
 	index bleve.Index
 }
 
-func (infoIndex *GeoInfoIndex) Update(context context.Context, bulkSize int, objects chan BleveInfoObject) error {
+func (geoIndex *GeoInfoIndex) Update(context context.Context, bulkSize int, objects chan BleveInfoObject) error {
 	var total uint64
 	begin := time.Now()
 
-	batch := infoIndex.index.NewBatch()
+	batch := geoIndex.index.NewBatch()
 
 	for obj := range objects {
 		current := atomic.AddUint64(&total, 1)
@@ -41,7 +42,7 @@ func (infoIndex *GeoInfoIndex) Update(context context.Context, bulkSize int, obj
 			}
 			// commit
 			if batch.Size() >= bulkSize {
-				if err := infoIndex.index.Batch(batch); err != nil {
+				if err := geoIndex.index.Batch(batch); err != nil {
 					log.Fatal(err)
 					return err
 				}
@@ -51,7 +52,7 @@ func (infoIndex *GeoInfoIndex) Update(context context.Context, bulkSize int, obj
 	}
 
 	if batch.Size() > 0 {
-		if err := infoIndex.index.Batch(batch); err != nil {
+		if err := geoIndex.index.Batch(batch); err != nil {
 			log.Fatal(err)
 			return err
 		}
@@ -112,4 +113,12 @@ func openOrCreateNewBleveIndex(indexName string, indexMapping mapping.IndexMappi
 		}
 	}
 	return
+}
+
+func buildSearchQuery(ipAddr string) query.Query {
+	ipNumeric := ipToInt(ipAddr)
+	q1 := bleve.NewQueryStringQuery(fmt.Sprintf("%s:>=%d", InfoStartIP, ipNumeric))
+	q2 := bleve.NewQueryStringQuery(fmt.Sprintf("%s:<=%d", InfoEndIP, ipNumeric))
+
+	return bleve.NewConjunctionQuery(q1, q2)
 }
